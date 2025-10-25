@@ -2,7 +2,7 @@
 
 > A hands-on exploration of Continuous Integration and Continuous Deployment using GitHub Actions.
 
-[![CI Status](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
+[![CI Status](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
 
 ---
 
