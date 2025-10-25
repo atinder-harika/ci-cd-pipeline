@@ -1,0 +1,33 @@
+name: frontend-ci # Give it a descriptive name
+
+on: # When should this run?
+  push:
+    branches: [main,development]
+  pull_request:
+    branches: [main,development]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest # Which OS?
+    
+    defaults:
+      run:
+        working-directory: src # Where is your frontend code?
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Which action?
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4 # Which action?
+        with:
+          node-version: 20 # Which version?
+      
+      - name: Install dependencies
+        run: npm ci # What command?
+      
+      - name: Run tests
+        run: npm test # What command?
+      
+      - name: Build project
+        run: npm run build # What command?
