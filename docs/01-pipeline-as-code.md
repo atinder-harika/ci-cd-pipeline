@@ -99,8 +99,11 @@ A: [Try breaking a test and see! Document the result]
 A: [Research this for next phase]
 
 ---
+## Optimization: Dependency Caching
+
+**Before:** 27 seconds to run worklow
+![Time to install dependencies](image.png)
 
 ## Next Steps
-- [ ] Add dependency caching to speed up builds
 - [ ] Understand how to run jobs in parallel
 - [ ] Learn about matrix builds (test multiple Node versions)
