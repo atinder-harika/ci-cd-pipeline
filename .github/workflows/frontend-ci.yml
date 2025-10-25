@@ -12,7 +12,7 @@ jobs:
     
     defaults:
       run:
-        working-directory: src # Where is your frontend code?
+        working-directory: frontend # Where is your frontend code?
     
     steps:
       - name: Checkout code
