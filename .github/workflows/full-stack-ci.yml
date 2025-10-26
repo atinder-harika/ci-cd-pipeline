@@ -83,11 +83,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: frontend-build
+          path: ./frontend-build
       
       - name: Download backend artifact
         uses: actions/download-artifact@v4
         with:
           name: backend-jar
+          path: ./backend-jar
       
       - name: Simulate deployment
         run: |
