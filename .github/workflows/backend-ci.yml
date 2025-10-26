@@ -1,0 +1,39 @@
+name: backend-ci
+
+on:
+  push:
+    branches: [main,development]
+  pull_request:
+    branches: [main,development]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest  # Which OS?
+    
+    defaults:
+      run:
+        working-directory: backend # Where is your backend code?
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4  # Which action?
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17  # Which Java version?
+          distribution: 'temurin'  # Eclipse Temurin (formerly AdoptOpenJDK)
+          cache: 'maven'  # Cache Maven dependencies
+      
+      - name: Run tests
+        run: ./mvnw test  # What Maven command?
+      
+      - name: Build project
+        run: ./mvnw clean package  # What Maven command? (creates .jar file)
+      
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/target/*.jar  # The built JAR file
+          retention-days: 7
