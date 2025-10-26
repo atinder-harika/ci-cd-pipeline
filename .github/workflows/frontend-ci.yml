@@ -12,16 +12,11 @@ jobs:
     strategy:
       fail-fast: false  # Whether to cancel other jobs if one fails
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [18, 20, 22]
-        exclude:
+        os: [ubuntu-latest, windows-latest]
+        node-version: [20, 22]
+        include:
         - os: macos-latest
-          node-version: 18
-        - os: macos-latest
-          node-version: 20  
-        # include:
-        #   - os: macos-latest
-        #     node-version: 22  #(would use to include specific combinations)  
+          node-version: 22  
     
     defaults:
       run:
