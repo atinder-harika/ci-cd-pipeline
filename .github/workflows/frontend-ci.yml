@@ -10,16 +10,19 @@ jobs:
   test-and-build:
     runs-on: ${{ matrix.os }} # Which OS?
     strategy:
+      fail-fast: true  # Whether to cancel other jobs if one fails
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest] # Which OSes?
         node-version: [18, 20, 22]
-        # This creates 9 jobs (3 OS × 3 Node versions)
-        # include:
-        #   - os: macos-latest
-        #     node-version: 22  # Include macOS + Node 22(would use to include specific combinations)
         exclude:
         - os: macos-latest
-          node-version: [18,20]  # Skip macOS + Node 18/20
+          node-version: 18  # Skip macOS + Node 18
+          exclude:
+        - os: macos-latest
+          node-version: 20  # Skip macOS + Node 20
+        # include:
+        #   - os: macos-latest
+        #     node-version: 22  #(would use to include specific combinations)  
     
     defaults:
       run:
