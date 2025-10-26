@@ -1,7 +1,6 @@
 # Artifacts & Job Dependencies
 
-**Date:** October 26, 2024  
-**Status:** ✅ Complete - Multi-stage pipeline working
+**Status:** ✅ Complete
 
 ---
 
@@ -12,27 +11,34 @@
 - Test reports (coverage, screenshots)
 - Logs and diagnostic data
 
-**Key Actions:**
+**Limits:** 500 MB per artifact, 90 days default retention
+
+---
+
+## Artifact Syntax
+
+### Upload Artifacts
+
 ```yaml
-# Save files
 - uses: actions/upload-artifact@v4
   with:
     name: frontend-build
     path: frontend/dist/
     retention-days: 7  # Default: 90 days
+```
 
-# Retrieve files in another job
+### Download Artifacts
+
+```yaml
 - uses: actions/download-artifact@v4
   with:
     name: frontend-build
     path: ./dist
 ```
 
-**Limits:** 500 MB per artifact, 90 days default retention
-
 ---
 
-## Job Dependencies with `needs`
+## Job Dependencies
 
 By default, jobs run **in parallel**. Use `needs` to create sequential workflows:
 
@@ -56,116 +62,6 @@ jobs:
 ---
 
 ## My Multi-Stage Pipeline
-
-### Architecture
-```
-┌─────────┐
-│  Build  │ ← Compiles code, uploads dist/
-└────┬────┘
-     │
-     ├──────────────┐
-     ↓              ↓
-┌─────────┐   ┌─────────┐
-│  Test   │   │ Deploy  │ ← Downloads dist/, simulates deployment
-└─────────┘   └─────────┘
-(parallel)    (needs: [build, test])
-```
-
-### Benefits Over Single Job
-- ✅ **Faster feedback:** Build and test run simultaneously
-- ✅ **Build once, test many:** Use artifact in matrix builds
-- ✅ **Deployment safety:** Only deploy if tests pass
-- ✅ **Artifact preservation:** Download builds for manual inspection
-
----
-
-## Build Once, Test Many Pattern
-
-**Optimization:** Share build artifact across matrix jobs
-
-```yaml
-jobs:
-  build:
-    steps:
-      - run: npm run build
-      - uses: actions/upload-artifact@v4
-        with:
-          name: build
-          path: dist/
-  
-  test:
-    needs: build
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [20, 22]
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: build
-      - run: npm test  # Tests the same build on 6 environments
-```
-
-**Result:** 1 build (2 min) + 6 test jobs (30s each) = **2m 30s total** (vs 12 minutes if building in each job)
-
----
-
-## Key Learnings
-
-### 1. Parallel vs Sequential Execution
-- **No `needs`:** Jobs run in parallel (fastest for independent tasks)
-- **With `needs`:** Jobs run sequentially (required for dependent tasks)
-
-### 2. Conditional Execution
-```yaml
-deploy:
-  needs: [build, test]
-  if: github.ref == 'refs/heads/main'  # Only deploy from main branch
-```
-
-### 3. Artifact Management
-- Uploaded artifacts appear in GitHub Actions UI (downloadable ZIP)
-- Useful for debugging ("What did the build actually produce?")
-- Expired artifacts are automatically deleted (retention policy)
-
-### 4. When to Use Multi-Job Pipelines
-
-**Use separate jobs when:**
-- ✅ Build and test can run in parallel (faster CI)
-- ✅ Need to share build output with multiple jobs (matrix testing)
-- ✅ Want deployment gate (only deploy if all tests pass)
-- ✅ Different jobs require different runners (Linux build, Windows test)
-
-**Use single job when:**
-- ✅ Simple projects (tests finish in < 1 minute)
-- ✅ Steps must run sequentially anyway
-- ✅ No need to preserve build output
-
----
-
-## Research Answers
-
-**Q1: What if `test` fails but `build` succeeds?**  
-**A:** `deploy-preview` **will not run** because `needs: [build, test]` requires ALL dependencies to succeed.
-
-**Q2: Why separate build and test into different jobs?**  
-**A:** 
-1. They can run **in parallel** (faster feedback)
-2. Can reuse build artifact in **matrix test jobs** (build once, test on 6 environments)
-3. Clear separation of concerns (easier to debug which stage failed)
-
-**Q3: How to make test job use build artifact?**  
-**A:** Use `actions/download-artifact@v4` in the test job to retrieve the build output instead of rebuilding.
-
-**Q4: Artifact size limit?**  
-**A:** **500 MB** per artifact (GitHub Actions limit)
-
-**Q5: Using artifacts in matrix builds?**  
-**A:** Upload artifact in one job, then download it in each matrix job using `actions/download-artifact@v4`
-
----
-
-## Practical Example: My Workflow
 
 ```yaml
 jobs:
@@ -197,15 +93,159 @@ jobs:
       - run: ls -laR  # Verify artifact downloaded
 ```
 
+**Flow:**
+```
+build ─┐
+       ├─→ deploy (only if both succeed)
+test ──┘
+```
+
+**Benefits:**
+- ✅ Build and test run in parallel (faster feedback)
+- ✅ Deploy only if all tests pass (safety)
+- ✅ Artifact preservation (download builds for inspection)
+
 ---
 
-## Next Steps
+## Build Once, Test Many Pattern
 
-- ✅ Understand artifacts and job dependencies
-- ✅ Built multi-stage pipeline (build → test → deploy)
-- ✅ Optimized with parallel execution
-- 🔜 **Next:** Backend CI with Spring Boot & Maven
+Share build artifact across matrix jobs for efficiency:
+
+```yaml
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: dist/
+  
+  test:
+    needs: build
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node-version: [20, 22]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: build
+      - run: npm test  # Tests same build on 6 environments
+```
+
+**Result:** 1 build (2 min) + 6 test jobs (30s each) = **2m 30s**  
+**vs:** Building in each job = **12 minutes**
 
 ---
 
-**Key Insight:** Jobs with `needs` create dependency graphs. GitHub Actions automatically determines optimal execution order and parallelization! 🚀
+## Mistakes & Lessons
+
+### Error #1: Artifact Download Path
+
+**Problem:** Expected artifact to download into subdirectory
+
+```yaml
+- uses: actions/download-artifact@v4
+  with:
+    name: frontend-build
+- run: ls frontend-build/  # ❌ Fails! No such directory
+```
+
+**Lesson:** Artifacts download to **current directory** by default, not a subdirectory!
+
+**Fix:** Specify path explicitly
+```yaml
+- uses: actions/download-artifact@v4
+  with:
+    name: frontend-build
+    path: ./frontend-build  # ✅ Creates subdirectory
+- run: ls frontend-build/  # ✅ Works!
+```
+
+---
+
+## When to Use Multi-Job Pipelines
+
+**Use separate jobs when:**
+- ✅ Build and test can run in parallel (faster)
+- ✅ Need to share artifacts with multiple jobs (matrix testing)
+- ✅ Want deployment gates (deploy only if all tests pass)
+- ✅ Different jobs need different runners (Linux build, Windows test)
+
+**Use single job when:**
+- ✅ Simple projects (tests < 1 minute)
+- ✅ Steps must run sequentially
+- ✅ No need to preserve build output
+
+---
+
+## Quick Reference
+
+### Common Patterns
+
+**Multi-stage with conditional deploy:**
+```yaml
+jobs:
+  build:
+    # ...
+  test:
+    # ...
+  deploy:
+    needs: [build, test]
+    if: github.ref == 'refs/heads/main'  # Only on main branch
+```
+
+**Parallel builds:**
+```yaml
+jobs:
+  frontend:
+    # Runs immediately
+  backend:
+    # Runs in parallel with frontend
+  deploy:
+    needs: [frontend, backend]  # Waits for BOTH
+```
+
+### Context Variables
+```yaml
+${{ github.ref }}             # Branch ref (refs/heads/main)
+${{ github.event_name }}      # push, pull_request, etc.
+${{ success() }}              # Previous jobs succeeded
+${{ failure() }}              # Previous jobs failed
+```
+
+---
+
+## Key Takeaways
+
+1. **Artifacts** - Share build outputs between jobs or preserve for download
+2. **Job Dependencies** - Use `needs` to control execution order
+3. **Parallel Execution** - Jobs without `needs` run simultaneously (faster CI)
+4. **Deployment Gates** - Combine `needs` + `if` for safe deployments
+5. **Build Once Pattern** - Upload artifact once, download in multiple jobs
+6. **Download Path** - Artifacts extract to current directory unless path specified
+
+---
+
+## Questions I Can Now Answer
+
+**Q: What if `test` fails but `build` succeeds?**  
+**A:** `deploy` **will not run** because `needs: [build, test]` requires ALL dependencies to succeed.
+
+**Q: Why separate build and test into different jobs?**  
+**A:** 
+1. They can run **in parallel** (faster feedback)
+2. Can reuse build artifact in **matrix test jobs** (build once, test on 6 environments)
+3. Clear separation of concerns (easier to debug which stage failed)
+
+**Q: How long are artifacts stored?**  
+**A:** **90 days** by default, or custom via `retention-days: 7` (saves storage costs).
+
+**Q: Can I download artifacts locally?**  
+**A:** Yes! Go to Actions → Workflow run → Artifacts section → Download ZIP.
+
+---
+
+**Next:** [Backend Maven CI →](04-backend-maven-ci.md)

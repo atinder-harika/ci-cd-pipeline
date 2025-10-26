@@ -1,4 +1,4 @@
-name: Full-Stack CI
+name: full-stack-ci
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Artifacts Demo
+name: artifacts-ci
 
 on:
   push:

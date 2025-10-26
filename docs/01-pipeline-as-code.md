@@ -1,185 +1,212 @@
-# Pipeline as Code (PaC)
+# Pipeline as Code
 
-**Date Started:** October 25, 2024  
-**Status:** ✅ Basic workflow working
+**Status:** ✅ Complete
 
 ---
 
 ## What is Pipeline as Code?
 
-[Your explanation - explain it in your own words like you're teaching someone else]
+Defining CI/CD pipelines as version-controlled configuration files (YAML) stored alongside source code. This makes builds reproducible, auditable, and enables collaboration through pull requests.
 
 ---
 
-## My First Workflow: `frontend-ci.yml`
+## GitHub Actions Fundamentals
 
-### What It Does
-- Triggers on: push/PR to main and development branches
-- Runs on: Ubuntu Linux (latest)
-- Steps:
-  1. Checks out code from GitHub
-  2. Sets up Node.js v20
-  3. Installs dependencies (`npm ci`)
-  4. Runs tests (`npm test`)
-  5. Builds the app (`npm run build`)
+### YAML Structure
+```yaml
+name: Workflow name
+on: [push, pull_request]        # Triggers
+jobs:
+  job-name:
+    runs-on: ubuntu-latest      # Runner OS
+    steps:
+      - uses: actions/checkout@v4   # Pre-built action
+      - run: npm test               # Shell command
+```
 
-### Why These Steps Matter
+### Key Concepts
 
-**`npm ci` vs `npm install`:**
-- [Explain the difference - look it up if you don't know!]
-- Why I use `npm ci` in CI: [Your reasoning]
+**Triggers (`on`):**
+- `push`: Runs on code pushes to specified branches
+- `pull_request`: Runs on PR creation/updates
+- `workflow_dispatch`: Manual trigger button in GitHub UI
 
-**Working Directory:**
-- Why I needed `working-directory: frontend`: [Explain]
-- What happens without it: [Explain]
+**Runners (`runs-on`):**
+- `ubuntu-latest` - Linux VM (fastest, most common)
+- `windows-latest` - Windows VM
+- `macos-latest` - macOS VM (10× cost of Ubuntu)
+
+**Steps:**
+- `uses:` - Pre-built GitHub Actions (JavaScript/Docker)
+- `run:` - Shell commands executed in runner environment
 
 ---
 
-## Mistakes I Made
+## My First Workflow
 
-### Error #1: Wrong Working Directory Path
-**Problem:** Initially set `working-directory: src` but my folder was `frontend/`
+```yaml
+name: frontend-ci
 
-**Error Message:**
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run tests
+        run: npm test
+      
+      - name: Build project
+        run: npm run build
 ```
-Error: An error occurred trying to start process '/usr/bin/bash' with 
-working directory '/home/runner/work/ci-cd-pipeline/ci-cd-pipeline/src'. 
-No such file or directory
+
+---
+
+## Mistakes & Lessons
+
+### Error #1: Wrong Working Directory
+**Problem:** Set `working-directory: src` but folder was `frontend/`
+
+**Error:**
+```
+No such file or directory: '/home/runner/work/ci-cd-pipeline/ci-cd-pipeline/src'
 ```
 
-**What I Learned:**
-- `working-directory` must match actual folder structure
-- The `defaults.run.working-directory` only applies to `run:` steps, not `uses:` actions
-- `actions/checkout` creates the folder structure; subsequent steps navigate into it
+**Lesson:** `working-directory` must match actual folder structure. It only applies to `run:` steps, not `uses:` actions.
 
 **Fix:** Changed to `working-directory: frontend`
 
 ---
 
-## Key Concepts
+### Understanding `npm ci` vs `npm install`
 
-### 1. YAML Structure
-```yaml
-name: Workflow name
-on: Trigger events
-jobs:
-  job-name:
-    runs-on: Operating system
-    steps:
-      - name: Step description
-        uses: Pre-built action OR
-        run: Shell command
-```
+**`npm ci` (Clean Install):**
+- Deletes `node_modules/` before installing
+- Requires `package-lock.json` (fails without it)
+- Faster in CI (no dependency resolution)
+- Reproducible builds (uses exact versions from lockfile)
 
-### 2. Triggers (`on:`)
-- `push`: Runs when code is pushed to specified branches
-- `pull_request`: Runs when PR is opened/updated
-- `workflow_dispatch`: Adds manual trigger button
+**`npm install`:**
+- Updates `package-lock.json` if needed
+- Resolves dependencies (slower)
+- Used in development
 
-### 3. Runners (`runs-on:`)
-- `ubuntu-latest`: Linux VM (most common, fastest)
-- `windows-latest`: Windows VM
-- `macos-latest`: macOS VM
-
-### 4. Actions (`uses:`) vs Commands (`run:`)
-- `uses:`: Pre-built reusable actions (JavaScript/Docker)
-- `run:`: Shell commands executed in the runner
+**CI Rule:** Always use `npm ci` for reproducible builds!
 
 ---
 
-## Questions I Can Now Answer
+## Caching Optimization
 
-**Q: Why doesn't `actions/checkout` need `working-directory`?**  
-A: Working directory only applies to  shell commands like 'run'.
-
-**Q: What happens if a test fails?**  
-A: If the test fails it will stop the next steps and start Post Chekout code cleanup, finishing the job.
-
-**Q: Can I run multiple jobs in parallel?**  
-A: Yes, it is possible by using Parallel Matrix
-
----
-## Optimization: Dependency Caching
-
-**Before:** No cache found
-![Before caching](before-cache.png)
-
-**After:** Cache restored
-![After caching](after-cache.png)
-
-
-### How Cache Matching Works
-
-**Step 1: Exact key match**
-```yaml
-key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
-# Example: "Linux-node-a1b2c3d4e5f6"
+### Before Caching
 ```
-If found → Restore cache, skip download
+Install dependencies: 52 seconds
+```
 
-**Step 2: Fallback to restore-keys (prefix match)**
+### After Caching
+```yaml
+- uses: actions/setup-node@v4
+  with:
+    node-version: 20
+    cache: 'npm'  # ← Single line enables caching!
+    cache-dependency-path: frontend/package-lock.json
+```
+
+**Result:** 41 seconds (21% speedup)
+
+### How It Works
+
+**Cache Key:** `${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}`
+- OS-specific (Linux cache won't work on Windows)
+- Content-based (hash changes when dependencies change)
+
+**Restore Keys:** Fallback for partial matches
 ```yaml
 restore-keys: |
   ${{ runner.os }}-node-
-# Matches: "Linux-node-*" (any hash)
 ```
-If found → Restore closest match, install only NEW packages
 
-**Step 3: Save new cache**
-- After workflow completes, ALWAYS saves cache with current key
-- Even if we restored from `restore-keys`, we save updated version
-
-### Why This Design?
-
-**Scenario:** You add one new package to `package.json`
-
-- ❌ Without restore-keys: Downloads all 500 packages (2 minutes)
-- ✅ With restore-keys: Restores 499 packages, downloads 1 new package (10 seconds)
-
-**Performance gain:** 92% faster! 🚀
+**Flow:**
+1. First run: No cache → Download deps → Save cache
+2. Second run: Cache hit → Restore deps (5 seconds)
+3. Changed `package.json`: Cache miss → Download → Save new cache
 
 ---
 
-## Research Answers
+## Quick Reference
 
-### Q1: What if package-lock.json is deleted?
-**Answer:** 
-- `hashFiles()` returns empty/null → cache key changes every run → no cache reuse
-- `npm ci` also **requires** package-lock.json to exist (fails without it)
-- **Lesson:** Never commit without package-lock.json in Node projects!
+### Common Actions
+```yaml
+actions/checkout@v4           # Clone repository
+actions/setup-node@v4         # Install Node.js
+actions/upload-artifact@v4    # Save build outputs
+actions/download-artifact@v4  # Retrieve artifacts
+actions/cache@v4              # Manual caching
+```
 
-### Q2: Cache retention period?
-**Answer:** 7 days of inactivity. Also:
-- Max 10 GB per repo
-- LRU (Least Recently Used) eviction when limit reached
+### Workflow Triggers
+```yaml
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'              # Only run if src/ changed
+  schedule:
+    - cron: '0 0 * * *'       # Daily at midnight
+  workflow_dispatch:          # Manual trigger
+```
 
-### Q3: `cache` vs `restore-keys`?
-**Answer:**
-- `key`: Exact match required; if found, restore and stop
-- `restore-keys`: Prefix/pattern match; falls back if exact key not found
-- Workflow **always saves** new cache with current `key` after completion
-
-### Q4: Why include `runner.os` in cache key?
-**Answer:** 
-- `node_modules` with native bindings are OS-specific
-- A cache built on Linux won't work on Windows (causes errors)
-- Example: `bcrypt`, `sharp`, `node-sass` compile native C++ extensions
+### Context Variables
+```yaml
+${{ github.ref }}             # Branch/tag ref
+${{ github.sha }}             # Commit SHA
+${{ runner.os }}              # Runner OS (Linux, Windows, macOS)
+${{ secrets.MY_SECRET }}      # Access repository secrets
+```
 
 ---
 
-## Performance Impact
+## Key Takeaways
 
-**Observation:** With tiny project, caching overhead ≈ time saved
+1. **Pipeline as Code** - Version control your CI/CD configurations
+2. **Working Directory** - Only applies to `run:` steps, not `uses:` actions
+3. **npm ci** - Always use in CI for reproducible builds
+4. **Caching** - Built-in caching in `setup-node` saves significant time
+5. **Actions vs Commands** - `uses:` for reusable actions, `run:` for custom commands
 
-**In production projects:**
-- 500+ npm packages
-- Without cache: 1-3 minutes install time
-- With cache: 5-15 seconds
-- **Speedup:** 10-20x faster! 🚀
+---
 
-**When caching hurts:**
-- Very small projects (like this demo)
-- Packages rarely change
-- Trade-off: 5 seconds of cache logic vs 10 seconds of fresh install
+## Questions Answered
 
-**Best practice:** Always cache in real projects; skip for tiny demos
+**Q: Why doesn't `actions/checkout` need `working-directory`?**  
+**A:** It's a `uses:` action (runs independently), not a `run:` command. `working-directory` only affects shell commands.
+
+**Q: What happens if tests fail?**  
+**A:** Workflow stops immediately. Subsequent steps (build, deploy) are skipped. Job status: ❌
+
+**Q: Why use `actions/checkout@v4` instead of `git clone`?**  
+**A:** Pre-configured for GitHub Actions (auth, sparse checkout, submodules). Much simpler than manual git commands.
+
+---
+
+**Next:** [Matrix Builds →](02-matrix-builds.md)
