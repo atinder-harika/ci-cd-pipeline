@@ -26,10 +26,10 @@ jobs:
           cache: 'maven'  # Cache Maven dependencies
       
       - name: Run tests
-        run: chmod +x ./mvnw test  # What Maven command?
+        run: ./mvnw test  # What Maven command?
       
       - name: Build project
-        run: chmod +x ./mvnw && ./mvnw clean package  # What Maven command? (creates .jar file)
+        run:  ./mvnw clean package  # What Maven command? (creates .jar file)
       
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
