@@ -90,19 +90,99 @@ jobs:
 ## Questions I Can Now Answer
 
 **Q: Why doesn't `actions/checkout` need `working-directory`?**  
-A: [Your answer]
+A: Working directory only applies to  shell commands like 'run'.
 
 **Q: What happens if a test fails?**  
-A: [Try breaking a test and see! Document the result]
+A: If the test fails it will stop the next steps and start Post Chekout code cleanup, finishing the job.
 
 **Q: Can I run multiple jobs in parallel?**  
-A: [Research this for next phase]
+A: Yes, it is possible by using Parallel Matrix
 
 ---
 ## Optimization: Dependency Caching
 
-**Before:** 27 seconds to run worklow
-![Time to install dependencies](image.png)
+**Before:** No cache found
+![Before caching](before-cache.png)
+
+**After:** Cache restored
+![After caching](after-cache.png)
+
+
+### How Cache Matching Works
+
+**Step 1: Exact key match**
+```yaml
+key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+# Example: "Linux-node-a1b2c3d4e5f6"
+```
+If found → Restore cache, skip download
+
+**Step 2: Fallback to restore-keys (prefix match)**
+```yaml
+restore-keys: |
+  ${{ runner.os }}-node-
+# Matches: "Linux-node-*" (any hash)
+```
+If found → Restore closest match, install only NEW packages
+
+**Step 3: Save new cache**
+- After workflow completes, ALWAYS saves cache with current key
+- Even if we restored from `restore-keys`, we save updated version
+
+### Why This Design?
+
+**Scenario:** You add one new package to `package.json`
+
+- ❌ Without restore-keys: Downloads all 500 packages (2 minutes)
+- ✅ With restore-keys: Restores 499 packages, downloads 1 new package (10 seconds)
+
+**Performance gain:** 92% faster! 🚀
+
+---
+
+## Research Answers
+
+### Q1: What if package-lock.json is deleted?
+**Answer:** 
+- `hashFiles()` returns empty/null → cache key changes every run → no cache reuse
+- `npm ci` also **requires** package-lock.json to exist (fails without it)
+- **Lesson:** Never commit without package-lock.json in Node projects!
+
+### Q2: Cache retention period?
+**Answer:** 7 days of inactivity. Also:
+- Max 10 GB per repo
+- LRU (Least Recently Used) eviction when limit reached
+
+### Q3: `cache` vs `restore-keys`?
+**Answer:**
+- `key`: Exact match required; if found, restore and stop
+- `restore-keys`: Prefix/pattern match; falls back if exact key not found
+- Workflow **always saves** new cache with current `key` after completion
+
+### Q4: Why include `runner.os` in cache key?
+**Answer:** 
+- `node_modules` with native bindings are OS-specific
+- A cache built on Linux won't work on Windows (causes errors)
+- Example: `bcrypt`, `sharp`, `node-sass` compile native C++ extensions
+
+---
+
+## Performance Impact
+
+**Observation:** With tiny project, caching overhead ≈ time saved
+
+**In production projects:**
+- 500+ npm packages
+- Without cache: 1-3 minutes install time
+- With cache: 5-15 seconds
+- **Speedup:** 10-20x faster! 🚀
+
+**When caching hurts:**
+- Very small projects (like this demo)
+- Packages rarely change
+- Trade-off: 5 seconds of cache logic vs 10 seconds of fresh install
+
+**Best practice:** Always cache in real projects; skip for tiny demos
 
 ## Next Steps
 - [ ] Understand how to run jobs in parallel
