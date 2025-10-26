@@ -183,7 +183,3 @@ If found → Restore closest match, install only NEW packages
 - Trade-off: 5 seconds of cache logic vs 10 seconds of fresh install
 
 **Best practice:** Always cache in real projects; skip for tiny demos
-
-## Next Steps
-- [ ] Understand how to run jobs in parallel
-- [ ] Learn about matrix builds (test multiple Node versions)
