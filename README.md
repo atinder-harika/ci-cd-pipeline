@@ -3,7 +3,7 @@
 > Hands-on exploration of Continuous Integration and Continuous Deployment using GitHub Actions.
 
 [![Frontend CI](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
-[![Artifact CI](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/artifacts-ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
+[![Artifact Demo CI](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/artifacts-ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
 [![Backend CI](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
 [![Full Stack CI](https://github.com/atinder-harika/ci-cd-pipeline/actions/workflows/full-stack-ci.yml/badge.svg)](https://github.com/atinder-harika/ci-cd-pipeline/actions)
 
