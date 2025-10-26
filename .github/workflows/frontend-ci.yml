@@ -10,7 +10,7 @@ jobs:
   test-and-build:
     runs-on: ${{ matrix.os }} # Which OS?
     strategy:
-      fail-fast: true  # Whether to cancel other jobs if one fails
+      fail-fast: false  # Whether to cancel other jobs if one fails
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
         node-version: [18, 20, 22]
